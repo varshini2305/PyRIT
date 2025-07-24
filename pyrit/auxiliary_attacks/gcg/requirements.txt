@@ -1,0 +1,5 @@
+sentencepiece
+pyyaml
+fschat
+# git+https://github.com/Azure/PyRIT.git#egg=PyRIT[dev,gcg]
+# git+https://github.com/lm-sys/FastChat.git@2c68a13bfe10b86f40e3eefc3fcfacb32c00b02a

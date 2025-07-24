@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/azureml/curated/acpt-pytorch-2.2-cuda12.1:7
+# FROM mcr.microsoft.com/azureml/curated/acpt-pytorch-2.2-cuda12.1:7
+FROM --platform=linux/amd64 mcr.microsoft.com/azureml/curated/acpt-pytorch-2.2-cuda12.1:7
 
 RUN apt-get update
 

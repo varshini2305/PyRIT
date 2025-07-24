@@ -194,3 +194,7 @@ doc/_autosummary/
 # Ignore notebooks directory in Docker folder
 /docker/notebooks/
 /docker/notebooks/*
+**/pyrit-venv/
+pyrit/auxiliary_attacks/gcg/experiments/mlruns/*
+
+test.ipynb

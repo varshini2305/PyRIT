@@ -265,7 +265,39 @@ class AttackPrompt(object):
 
         self.input_ids = torch.tensor(toks[: self._target_slice.stop], device="cpu")
         self.conv_template.messages = []
+    
+    def _update_ids_new(self):
+        logger.debug(f"{self.goal=}, {self.control=}, {self.target=}")
+        
+        messages = [
+            {"role": "user", "content": f"{self.goal} {self.control}"},
+            {"role": "assistant", "content": f"{self.target}"},
+        ]
 
+        
+        prompt = self.tokenizer.apply_chat_template(messages, tokenize=False)
+
+        
+        encoding = self.tokenizer(prompt)
+        toks = encoding.input_ids
+
+        
+        def find_sublist(big, small):
+            for i in range(len(big) - len(small) + 1):
+                if big[i:i+len(small)] == small:
+                    return slice(i, i+len(small))
+            return None
+
+        goal_toks = self.tokenizer(self.goal, add_special_tokens=False).input_ids
+        control_toks = self.tokenizer(self.control, add_special_tokens=False).input_ids
+        target_toks = self.tokenizer(self.target, add_special_tokens=False).input_ids
+
+        self._goal_slice = find_sublist(toks, goal_toks)
+        self._control_slice = find_sublist(toks, control_toks)
+        self._target_slice = find_sublist(toks, target_toks)
+
+        self.input_ids = torch.tensor(toks[:self._target_slice.stop], device="cpu")
+    
     @torch.no_grad()
     def generate(self, model, gen_config=None):
         if gen_config is None:
@@ -961,7 +993,7 @@ class ProgressiveMultiPromptAttack(object):
         self.test_workers = test_workers
         self.progressive_goals = progressive_goals
         self.progressive_models = progressive_models
-        self.control = control_init
+        self.control = control_init # conv template setting
         self.test_prefixes = test_prefixes
         self.logfile = logfile
         self.managers = managers
@@ -1621,6 +1653,7 @@ def get_workers(params, eval=False):
         tokenizer = AutoTokenizer.from_pretrained(
             params.tokenizer_paths[i], token=params.token, trust_remote_code=False, **params.tokenizer_kwargs[i]
         )
+        logger.debug(f"{ params.tokenizer_paths[i]=}")
         if "oasst-sft-6-llama-30b" in params.tokenizer_paths[i]:
             tokenizer.bos_token_id = 1
             tokenizer.unk_token_id = 0
@@ -1660,7 +1693,7 @@ def get_workers(params, eval=False):
             raw_conv_templates.append(conv_template)
         else:
             raise ValueError("Conversation template not recognized")
-
+    logger.debug(f"{params.conversation_templates=}")
     conv_templates = []
     for conv in raw_conv_templates:
         if conv.name == "zero_shot":

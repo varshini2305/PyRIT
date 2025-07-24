@@ -22,14 +22,16 @@ def log_train_goals(train_goals):
 
 
 def get_gpu_memory():
-    command = "nvidia-smi --query-gpu=memory.free --format=csv"
-    memory_free_info = sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
-    memory_free_values = {f"gpu{i+1}_free_memory": int(val.split()[0]) for i, val in enumerate(memory_free_info)}
-    memory_free_string = ", ".join(f"{val} MiB" for val in memory_free_values.values())
-    logger.info(f"Free GPU memory:\n{memory_free_string}")
-    return memory_free_values
-
-
+    try:
+        command = "nvidia-smi --query-gpu=memory.free --format=csv"
+        memory_free_info = sp.check_output(command.split()).decode("ascii").split("\n")[:-1][1:]
+        memory_free_values = {f"gpu{i+1}_free_memory": int(val.split()[0]) for i, val in enumerate(memory_free_info)}
+        memory_free_string = ", ".join(f"{val} MiB" for val in memory_free_values.values())
+        logger.info(f"Free GPU memory:\n{memory_free_string}")
+        return memory_free_values
+    except Exception:
+        return {}
+    
 def log_gpu_memory(step, synchronous=False):
     memory_values = get_gpu_memory()
     for gpu, val in memory_values.items():
