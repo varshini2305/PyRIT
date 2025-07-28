@@ -265,9 +265,9 @@ class AttackPrompt(object):
 
         self.input_ids = torch.tensor(toks[: self._target_slice.stop], device="cpu")
         self.conv_template.messages = []
-    
-    def _update_ids_new(self):
-        logger.debug(f"{self.goal=}, {self.control=}, {self.target=}")
+    # new _update_ids
+    def _update_ids(self):
+        logger.info(f"_update_ids new version - {self.goal=}, {self.control=}, {self.target=}")
         
         messages = [
             {"role": "user", "content": f"{self.goal} {self.control}"},
@@ -292,9 +292,32 @@ class AttackPrompt(object):
         control_toks = self.tokenizer(self.control, add_special_tokens=False).input_ids
         target_toks = self.tokenizer(self.target, add_special_tokens=False).input_ids
 
-        self._goal_slice = find_sublist(toks, goal_toks)
-        self._control_slice = find_sublist(toks, control_toks)
-        self._target_slice = find_sublist(toks, target_toks)
+        # self._goal_slice = find_sublist(toks, goal_toks)
+        # self._control_slice = find_sublist(toks, control_toks)
+        # self._target_slice = find_sublist(toks, target_toks)
+
+        self._goal_slice = slice(
+            encoding.char_to_token(prompt.find(self.goal)),
+            encoding.char_to_token(prompt.find(self.goal) + len(self.goal)),
+        )
+        self._control_slice = slice(
+            encoding.char_to_token(prompt.find(self.control)),
+            encoding.char_to_token(prompt.find(self.control) + len(self.control)),
+        )
+        self._assistant_role_slice = slice(
+            encoding.char_to_token(prompt.find(self.conv_template.roles[1])),
+            encoding.char_to_token(
+                prompt.find(self.conv_template.roles[1]) + len(self.conv_template.roles[1]) + 1
+            ),
+        )
+        self._target_slice = slice(
+            encoding.char_to_token(prompt.find(self.target)),
+            encoding.char_to_token(prompt.find(self.target) + len(self.target)),
+        )
+        self._loss_slice = slice(
+            encoding.char_to_token(prompt.find(self.target)) - 1,
+            encoding.char_to_token(prompt.find(self.target) + len(self.target)) - 1,
+        )
 
         self.input_ids = torch.tensor(toks[:self._target_slice.stop], device="cpu")
     
