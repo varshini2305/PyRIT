@@ -276,7 +276,7 @@ class AttackPrompt(object):
 
         
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False)
-
+        print(f"checking prompt before encoding, {prompt=}, {self.goal=}")
         
         encoding = self.tokenizer(prompt)
         toks = encoding.input_ids
@@ -1674,7 +1674,8 @@ def get_workers(params, eval=False):
     tokenizers = []
     for i in range(len(params.tokenizer_paths)):
         tokenizer = AutoTokenizer.from_pretrained(
-            params.tokenizer_paths[i], token=params.token, trust_remote_code=False, **params.tokenizer_kwargs[i]
+            params.tokenizer_paths[i], token=params.token, trust_remote_code=False, use_fast = True
+            # **params.tokenizer_kwargs[i]
         )
         logger.debug(f"{ params.tokenizer_paths[i]=}")
         if "oasst-sft-6-llama-30b" in params.tokenizer_paths[i]:
