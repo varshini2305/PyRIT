@@ -171,7 +171,7 @@ class AttackPrompt(object):
         self.conv_template.append_message(self.conv_template.roles[0], f"{self.goal} {self.control}")
         self.conv_template.append_message(self.conv_template.roles[1], f"{self.target}")
         prompt = self.conv_template.get_prompt()
-
+        print(f"checking prompt before encoding, {prompt=}")
         encoding = self.tokenizer(prompt)
         toks = encoding.input_ids
 
