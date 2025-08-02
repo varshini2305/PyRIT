@@ -165,13 +165,16 @@ class AttackPrompt(object):
             self.test_new_toks = max(self.test_new_toks, len(self.tokenizer(prefix).input_ids))
 
         self._update_ids()
-
-    def _update_ids(self):
+    # old fastchat implementation
+    """def _update_ids(self):
 
         self.conv_template.append_message(self.conv_template.roles[0], f"{self.goal} {self.control}")
         self.conv_template.append_message(self.conv_template.roles[1], f"{self.target}")
         prompt = self.conv_template.get_prompt()
-        print(f"checking prompt before encoding, {prompt=}")
+        print(f"_update_ids old version - {self.goal=}, {self.control=}, {self.target=}")
+        print(f"{self.conv_template.roles[0]=}, {self.conv_template.roles[1]=}")
+        print(f"checking prompt before encoding (old), {prompt=}")
+        print(f'{self.conv_template=}')
         encoding = self.tokenizer(prompt)
         toks = encoding.input_ids
 
@@ -233,7 +236,9 @@ class AttackPrompt(object):
                 self._target_slice = slice(self._assistant_role_slice.stop, len(toks) - 1)
                 self._loss_slice = slice(self._assistant_role_slice.stop - 1, len(toks) - 2)
             else:
-                self._system_slice = slice(None, encoding.char_to_token(len(self.conv_template.system)))
+                print(f'{self.conv_template=}')
+                #tocheck is it system_template or system_message?
+                self._system_slice = slice(None, encoding.char_to_token(len(self.conv_template.system_template)))
                 self._user_role_slice = slice(
                     encoding.char_to_token(prompt.find(self.conv_template.roles[0])),
                     encoding.char_to_token(
@@ -265,9 +270,9 @@ class AttackPrompt(object):
 
         self.input_ids = torch.tensor(toks[: self._target_slice.stop], device="cpu")
         self.conv_template.messages = []
-    # new _update_ids
+        """
+    # new _update_ids using apply_chat_template
     def _update_ids(self):
-        logger.info(f"_update_ids new version - {self.goal=}, {self.control=}, {self.target=}")
         
         messages = [
             {"role": "user", "content": f"{self.goal} {self.control}"},
@@ -276,26 +281,19 @@ class AttackPrompt(object):
 
         
         prompt = self.tokenizer.apply_chat_template(messages, tokenize=False)
-        print(f"checking prompt before encoding, {prompt=}, {self.goal=}")
+        print(f"_update_ids new version - {self.goal=}, {self.control=}, {self.target=}")
+        print(f"{self.conv_template.roles[0]=}, {self.conv_template.roles[1]=}")
+        print(f"checking prompt before encoding (new), {prompt=}, {self.goal=}")
         
         encoding = self.tokenizer(prompt)
         toks = encoding.input_ids
 
-        
-        def find_sublist(big, small):
-            for i in range(len(big) - len(small) + 1):
-                if big[i:i+len(small)] == small:
-                    return slice(i, i+len(small))
-            return None
-
-        goal_toks = self.tokenizer(self.goal, add_special_tokens=False).input_ids
-        control_toks = self.tokenizer(self.control, add_special_tokens=False).input_ids
-        target_toks = self.tokenizer(self.target, add_special_tokens=False).input_ids
-
+    
         # self._goal_slice = find_sublist(toks, goal_toks)
         # self._control_slice = find_sublist(toks, control_toks)
         # self._target_slice = find_sublist(toks, target_toks)
-
+        print(f"{self.conv_template.roles[1]=}")
+        print(f"{prompt.find(self.conv_template.roles[1])=}")
         self._goal_slice = slice(
             encoding.char_to_token(prompt.find(self.goal)),
             encoding.char_to_token(prompt.find(self.goal) + len(self.goal)),
@@ -320,6 +318,7 @@ class AttackPrompt(object):
         )
 
         self.input_ids = torch.tensor(toks[:self._target_slice.stop], device="cpu")
+        print(f"after new processing, {self.input_ids=}")
     
     @torch.no_grad()
     def generate(self, model, gen_config=None):
@@ -1661,7 +1660,10 @@ class ModelWorker(object):
     def stop(self):
         self.tasks.put(None)
         if self.process is not None:
-            self.process.join()
+            self.process.join(timeout=5.0)  # Add timeout
+            if self.process.is_alive():
+                self.process.terminate()  # Force terminate if still alive
+                self.process.join(timeout=2.0)
         torch.cuda.empty_cache()
         return self
 
